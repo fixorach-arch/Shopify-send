@@ -2,9 +2,36 @@ import { useState, useEffect, FormEvent, useRef, useMemo } from 'react';
 import { Send, Users, Eye, LayoutTemplate, Loader2, X, Code, Square, Type, Palette, MousePointerClick, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import ReactQuill from 'react-quill-new';
+import ReactQuill, { Quill } from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';
 import DOMPurify from 'dompurify';
+
+const Embed = Quill.import('blots/embed') as any;
+class ButtonBlot extends Embed {
+  static blotName = 'customButton';
+  static tagName = 'a';
+  static className = 'custom-btn-blot';
+
+  static create(value: any) {
+    const node = super.create(value);
+    node.setAttribute('href', value.url);
+    node.setAttribute('target', '_blank');
+    node.setAttribute('style', `display: inline-block; background-color: ${value.color}; color: white; padding: ${value.padding}; text-decoration: none; border-radius: 6px; font-weight: bold; text-align: center; font-size: ${value.fontSize}; margin: 4px 0;`);
+    node.innerText = value.text;
+    return node;
+  }
+
+  static value(node: any) {
+    return {
+      url: node.getAttribute('href'),
+      color: node.style.backgroundColor,
+      padding: node.style.padding,
+      fontSize: node.style.fontSize,
+      text: node.innerText
+    };
+  }
+}
+Quill.register(ButtonBlot);
 
 const CustomToolbar = ({ isCodeView, toggleCodeView, onInsertButton }: { isCodeView: boolean, toggleCodeView: () => void, onInsertButton: () => void }) => (
   <div id="toolbar" className="flex flex-wrap items-center gap-1 sm:gap-2">
@@ -212,6 +239,9 @@ export function Campaigns() {
     }
   }
 
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+
   const modules = useMemo(() => ({
     toolbar: {
       container: "#toolbar",
@@ -235,10 +265,43 @@ export function Campaigns() {
           }
           setLinkUrl('');
           setShowLinkModal(true);
+        },
+        image: () => {
+          const editor = quillRef.current?.getEditor();
+          if (!editor) return;
+          
+          const range = editor.getSelection(true);
+          if (range && typeof range.index === 'number') {
+            setSavedRange(range);
+          } else {
+            setSavedRange({ index: 0, length: 0 });
+          }
+          setImageUrl('');
+          setShowImageModal(true);
         }
       }
     }
   }), []);
+
+  const handleSaveImage = () => {
+    if (!imageUrl) {
+      toast.error('Please enter an image URL');
+      return;
+    }
+
+    const editor = quillRef.current?.getEditor();
+    if (!editor) return;
+
+    if (savedRange && typeof savedRange.index === 'number') {
+      editor.focus();
+      editor.insertEmbed(savedRange.index, 'image', imageUrl);
+      editor.setSelection(savedRange.index + 1);
+    }
+
+    setShowImageModal(false);
+    setSavedRange(null);
+    setImageUrl('');
+  };
 
   const handleSaveLink = () => {
     if (!linkUrl) {
@@ -290,16 +353,21 @@ export function Campaigns() {
         fontSize = '18px';
     }
 
-    const buttonHtml = `<a href="${btnUrl}" target="_blank" style="display: inline-block; background-color: ${btnColor}; color: white; padding: ${padding}; text-decoration: none; border-radius: 6px; font-weight: bold; text-align: center; font-size: ${fontSize}; margin: 4px 0;">${btnText}</a>&nbsp;`;
-
     const range = editor.getSelection(true);
     const index = (range && typeof range.index === 'number') ? range.index : 0;
     
-    editor.clipboard.dangerouslyPasteHTML(index, buttonHtml);
+    editor.insertEmbed(index, 'customButton', {
+      url: btnUrl,
+      text: btnText,
+      color: btnColor,
+      padding: padding,
+      fontSize: fontSize
+    });
     
     // Move cursor after button
     setTimeout(() => {
         editor.setSelection(index + 1);
+        editor.insertText(index + 1, ' ');
     }, 0);
 
     setShowButtonModal(false);
@@ -313,12 +381,12 @@ export function Campaigns() {
     'bold', 'italic', 'underline', 'strike',
     'color', 'background',
     'list',
-    'link', 'image'
+    'link', 'image', 'customButton'
   ];
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 lg:h-[calc(100vh-8rem)] h-auto flex flex-col relative">
-      <div className="flex items-center justify-between shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between shrink-0 space-y-4 sm:space-y-0">
         <div>
             <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-md">Create Campaign</h1>
             <p className="mt-1 text-slate-400">Design and send beautiful emails.</p>
@@ -505,7 +573,7 @@ export function Campaigns() {
                 </div>
             </div>
             
-            <div className="pt-2 pb-8 flex space-x-4">
+            <div className="pt-2 pb-8 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
                  <button
                     onClick={() => setShowTestEmailModal(true)}
                     disabled={sending}
@@ -629,6 +697,57 @@ export function Campaigns() {
                   className="flex-1 px-4 py-2 rounded-lg bg-cyan-600 text-white font-bold hover:bg-cyan-500 shadow-lg shadow-cyan-500/20 transition-all text-sm"
                 >
                   Insert Link
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Floating Toolbar */}
+      {showImageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowImageModal(false)}>
+          <div 
+            className="bg-slate-900 rounded-xl border border-white/10 shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200 ring-1 ring-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-slate-800/50">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Insert Image</h3>
+              <button 
+                onClick={() => setShowImageModal(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Image URL
+                </label>
+                <input
+                  type="url"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="w-full bg-slate-950 border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all text-sm"
+                  placeholder="https://example.com/image.jpg"
+                  autoFocus
+                />
+              </div>
+
+              <div className="pt-2 flex space-x-3">
+                <button
+                  onClick={() => setShowImageModal(false)}
+                  className="flex-1 px-4 py-2 rounded-lg bg-slate-800 text-slate-300 font-medium hover:bg-slate-700 transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveImage}
+                  className="flex-1 px-4 py-2 rounded-lg bg-cyan-600 text-white font-bold hover:bg-cyan-500 shadow-lg shadow-cyan-500/20 transition-all text-sm"
+                >
+                  Insert Image
                 </button>
               </div>
             </div>

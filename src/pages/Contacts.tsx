@@ -26,6 +26,7 @@ export function Contacts() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deleteConfirm, setDeleteConfirm] = useState<{type: 'single' | 'bulk', id?: number} | null>(null);
 
   useEffect(() => {
     fetchContacts();
@@ -67,21 +68,40 @@ export function Contacts() {
     setSelectedIds(newSelected);
   };
 
-  async function handleBulkDelete() {
+  function confirmBulkDelete() {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.size} contacts?`)) return;
+    setDeleteConfirm({ type: 'bulk' });
+  }
 
-    try {
-      const { error } = await supabase
-        .from('contacts')
-        .delete()
-        .in('id', Array.from(selectedIds));
+  function confirmDeleteContact(id: number) {
+    setDeleteConfirm({ type: 'single', id });
+  }
 
-      if (error) throw error;
-      toast.success(`Deleted ${selectedIds.size} contacts`);
-      fetchContacts();
-    } catch (error: any) {
-      toast.error('Failed to delete contacts: ' + error.message);
+  async function executeDelete() {
+    if (deleteConfirm?.type === 'bulk') {
+      try {
+        const { error } = await supabase
+          .from('contacts')
+          .delete()
+          .in('id', Array.from(selectedIds));
+
+        if (error) throw error;
+        toast.success(`Deleted ${selectedIds.size} contacts`);
+        fetchContacts();
+        setDeleteConfirm(null);
+      } catch (error: any) {
+        toast.error('Failed to delete contacts: ' + error.message);
+      }
+    } else if (deleteConfirm?.type === 'single' && deleteConfirm.id) {
+      try {
+        const { error } = await supabase.from('contacts').delete().eq('id', deleteConfirm.id);
+        if (error) throw error;
+        toast.success('Contact deleted');
+        fetchContacts();
+        setDeleteConfirm(null);
+      } catch (error) {
+        toast.error('Failed to delete contact');
+      }
     }
   }
 
@@ -172,22 +192,11 @@ export function Contacts() {
     });
   };
 
-  async function handleDeleteContact(id: number) {
-    if (!confirm('Are you sure you want to delete this contact?')) return;
-
-    try {
-      const { error } = await supabase.from('contacts').delete().eq('id', id);
-      if (error) throw error;
-      toast.success('Contact deleted');
-      fetchContacts();
-    } catch (error) {
-      toast.error('Failed to delete contact');
-    }
-  }
+  // handleDeleteContact replaced by confirmDeleteContact and executeDelete
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
         <div>
             <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-md">Contacts</h1>
             <p className="mt-1 text-slate-400">Manage your subscriber list.</p>
@@ -195,7 +204,7 @@ export function Contacts() {
         <div className="flex space-x-3">
           {selectedIds.size > 0 && (
             <button
-              onClick={handleBulkDelete}
+              onClick={confirmBulkDelete}
               className="flex items-center rounded-xl bg-red-500/10 px-5 py-3 text-sm font-bold text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all"
             >
               <Trash2 className="mr-2 h-5 w-5" />
@@ -230,65 +239,67 @@ export function Contacts() {
             </button>
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-white/5">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="px-6 py-5 w-12">
-                  <input
-                    type="checkbox"
-                    className="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
-                    checked={contacts.length > 0 && selectedIds.size === contacts.length}
-                    onChange={toggleSelectAll}
-                  />
-                </th>
-                <th className="px-6 py-5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Date Added
-                </th>
-                <th className="relative px-6 py-5">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {contacts.map((contact) => (
-                <tr key={contact.id} className={`hover:bg-white/5 transition-colors group ${selectedIds.has(contact.id) ? 'bg-cyan-500/5' : ''}`}>
-                  <td className="px-6 py-5">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-white/5">
+              <thead className="bg-white/5">
+                <tr>
+                  <th className="px-6 py-5 w-12">
                     <input
                       type="checkbox"
                       className="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
-                      checked={selectedIds.has(contact.id)}
-                      onChange={() => toggleSelect(contact.id)}
+                      checked={contacts.length > 0 && selectedIds.size === contacts.length}
+                      onChange={toggleSelectAll}
                     />
-                  </td>
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <div className="text-sm font-medium text-white">{contact.name || '-'}</div>
-                  </td>
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <div className="text-sm text-slate-400">{contact.email}</div>
-                  </td>
-                  <td className="px-6 py-5 whitespace-nowrap">
-                    <div className="text-sm text-slate-500">
-                      {new Date(contact.created_at).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleDeleteContact(contact.id)}
-                      className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  </td>
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Date Added
+                  </th>
+                  <th className="relative px-6 py-5">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {contacts.map((contact) => (
+                  <tr key={contact.id} className={`hover:bg-white/5 transition-colors group ${selectedIds.has(contact.id) ? 'bg-cyan-500/5' : ''}`}>
+                    <td className="px-6 py-5">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900"
+                        checked={selectedIds.has(contact.id)}
+                        onChange={() => toggleSelect(contact.id)}
+                      />
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap">
+                      <div className="text-sm font-medium text-white">{contact.name || '-'}</div>
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap">
+                      <div className="text-sm text-slate-400">{contact.email}</div>
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap">
+                      <div className="text-sm text-slate-500">
+                        {new Date(contact.created_at).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => confirmDeleteContact(contact.id)}
+                        className="text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -412,6 +423,34 @@ export function Contacts() {
                     </div>
                 </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 rounded-xl border border-white/10 shadow-2xl w-full max-w-md overflow-hidden p-6 animate-in fade-in zoom-in duration-200">
+            <h3 className="text-xl font-bold text-white mb-2">Confirm Deletion</h3>
+            <p className="text-slate-400 mb-6">
+              {deleteConfirm.type === 'bulk' 
+                ? `Are you sure you want to delete ${selectedIds.size} contacts? This action cannot be undone.`
+                : `Are you sure you want to delete this contact? This action cannot be undone.`}
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button 
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 font-medium hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={executeDelete}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white font-bold hover:bg-red-500 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
