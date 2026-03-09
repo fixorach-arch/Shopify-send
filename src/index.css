@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  --color-slate-950: #020617;
+  --color-slate-900: #0f172a;
+  --color-slate-800: #1e293b;
+  --color-cyan-400: #22d3ee;
+  --color-violet-500: #8b5cf6;
+}
+
+body {
+  background-color: var(--color-slate-950);
+  color: #e2e8f0; /* slate-200 */
+}
+
+/* Custom Scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a; 
+}
+::-webkit-scrollbar-thumb {
+  background: #334155; 
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569; 
+}
+
+/* Quill Editor Customizations for Dark Mode */
+.ql-container {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 1rem !important;
+  border-bottom-left-radius: 0.75rem;
+  border-bottom-right-radius: 0.75rem;
+  background-color: #1e293b; /* slate-800 */
+  color: #f8fafc; /* slate-50 */
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.ql-toolbar {
+  border-top-left-radius: 0.75rem;
+  border-top-right-radius: 0.75rem;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: #0f172a; /* slate-900 */
+}
+
+.ql-container.ql-snow {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.ql-editor {
+  min-height: 300px;
+}
+
+/* Fix Tooltip for Links in Dark Mode */
+.ql-snow .ql-tooltip {
+  background-color: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 0.5rem !important;
+  z-index: 50 !important;
+}
+
+.ql-snow .ql-tooltip input[type=text] {
+  background-color: #1e293b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  border-radius: 0.25rem !important;
+  padding: 0.5rem !important;
+}
+
+.ql-snow .ql-tooltip a.ql-action::after {
+  color: #22d3ee !important; /* cyan-400 */
+}
+
+.ql-snow .ql-tooltip a.ql-preview {
+  color: #22d3ee !important;
+}
+
+/* Quill Toolbar Icons */
+.ql-snow .ql-stroke {
+  stroke: #94a3b8 !important; /* slate-400 */
+}
+.ql-snow .ql-fill {
+  fill: #94a3b8 !important;
+}
+.ql-snow .ql-picker {
+  color: #94a3b8 !important;
+}
+.ql-snow .ql-picker-options {
+  background-color: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Hover states for toolbar */
+.ql-snow .ql-picker:hover, .ql-snow .ql-picker-label:hover {
+  color: #22d3ee !important; /* cyan-400 */
+}
+.ql-snow .ql-picker-label:hover .ql-stroke {
+  stroke: #22d3ee !important;
+}
+.ql-snow button:hover .ql-stroke {
+  stroke: #22d3ee !important;
+}
