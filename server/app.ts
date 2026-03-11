@@ -1,9 +1,6 @@
 import express from 'express';
-import { createRequire } from 'module';
 import dotenv from 'dotenv';
-
-const require = createRequire(import.meta.url);
-const SibApiV3Sdk = require('sib-api-v3-sdk');
+import SibApiV3Sdk from 'sib-api-v3-sdk';
 
 dotenv.config();
 
@@ -162,6 +159,6 @@ router.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Mount the router on both paths
+// Mount the router on multiple paths to handle different environments and serverless-http stripping
 app.use('/api', router);
 app.use('/.netlify/functions/api', router);
