@@ -11,7 +11,9 @@ export const app = express();
 
 app.use(express.json());
 
-app.post('/api/send-campaign', async (req, res) => {
+const router = express.Router();
+
+router.post('/send-campaign', async (req, res) => {
   const { subject, body, recipients } = req.body;
 
   const apiKey = process.env.BREVO_API_KEY ? process.env.BREVO_API_KEY.trim() : '';
@@ -91,7 +93,7 @@ app.post('/api/send-campaign', async (req, res) => {
   }
 });
 
-app.post('/api/send-test-email', async (req, res) => {
+router.post('/send-test-email', async (req, res) => {
   const { email, subject, body } = req.body;
 
   const apiKey = process.env.BREVO_API_KEY ? process.env.BREVO_API_KEY.trim() : '';
@@ -156,6 +158,10 @@ app.post('/api/send-test-email', async (req, res) => {
   }
 });
 
-app.get('/api/health', (req, res) => {
+router.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// Mount the router on both paths
+app.use('/api', router);
+app.use('/.netlify/functions/api', router);
